@@ -9,13 +9,18 @@ from typing import Callable, List, Union
 
 import numpy as np
 import pandas as pd
-
+# 导入 Bokeh 库中的 RGB 类，用于表示颜色。
 from bokeh.colors import RGB
+# 从 Bokeh 库中的 named 模块导入 lime 颜色，并将其命名为 BULL_COLOR；
+# 同时导入 tomato 颜色，并将其命名为 BEAR_COLOR。
 from bokeh.colors.named import (
     lime as BULL_COLOR,
     tomato as BEAR_COLOR
 )
+# 导入 Bokeh 库中的 figure 函数，并将其命名为 _figure。这是用于创建绘图图表的函数。
 from bokeh.plotting import figure as _figure
+
+# 导入多个 Bokeh 模块和类，用于定义和配置图表的各种元素，如工具、数据源、格式化、标尺等。
 from bokeh.models import (  # type: ignore
     CrosshairTool,
     CustomJS,
@@ -28,14 +33,44 @@ from bokeh.models import (  # type: ignore
     WheelZoomTool,
     LinearColorMapper,
 )
+
+"""
+try...except...: 尝试导入 CustomJSTickFormatter，
+如果导入失败则捕获 ImportError 异常，然后导入 FuncTickFormatter 并将其命名为 CustomJSTickFormatter。
+这是为了向后兼容 Bokeh 版本小于 3.0 的情况。
+"""
 try:
     from bokeh.models import CustomJSTickFormatter
 except ImportError:  # Bokeh < 3.0
     from bokeh.models import FuncTickFormatter as CustomJSTickFormatter  # type: ignore
+
+"""
+导入 Bokeh 库中的 output_notebook、output_file 和 show 函数，用于在不同的环境中展示 Bokeh 图表。
+output_notebook 用于在Jupyter Notebook中显示图表，output_file 用于将图表保存到文件中，show 用于在浏览器中显示图表。
+"""
+
 from bokeh.io import output_notebook, output_file, show
+
+"""
+导入 Bokeh 库中的 curstate 对象，用于获取当前 Bokeh 状态
+"""
+
 from bokeh.io.state import curstate
+
+"""
+导入 Bokeh 库中的 gridplot 函数，用于创建包含多个子图的网格布局。
+"""
+
 from bokeh.layouts import gridplot
+
+"""
+导入 Bokeh 库中的 Category10 调色板，用于定义颜色映射。
+"""
 from bokeh.palettes import Category10
+
+"""
+导入 Bokeh 库中的 factor_cmap 函数，用于创建因子映射，将因子值映射到颜色。
+"""
 from bokeh.transform import factor_cmap
 
 from backtesting._util import _data_period, _as_list, _Indicator
@@ -109,11 +144,11 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
             "15T": 15,
             "30T": 30,
             "1H": 60,
-            "2H": 60*2,
-            "4H": 60*4,
-            "8H": 60*8,
-            "1D": 60*24,
-            "1W": 60*24*7,
+            "2H": 60 * 2,
+            "4H": 60 * 4,
+            "8H": 60 * 8,
+            "1D": 60 * 24,
+            "1W": 60 * 24 * 7,
             "1M": np.inf,
         })
         timespan = df.index[-1] - df.index[0]
@@ -147,6 +182,7 @@ def _maybe_resample_data(resample_rule, df, indicators, equity_data, trades):
                 mean_time = int(bars.loc[s.index].view(int).mean())
                 new_bar_idx = new_index.get_indexer([mean_time], method='nearest')[0]
                 return new_bar_idx
+
         return f
 
     if len(trades):  # Avoid pandas "resampling on Int64 index" error
@@ -485,6 +521,30 @@ return this.labels[index] || "";
         r = fig_ohlc.vbar('index', BAR_WIDTH, 'Open', 'Close', source=source,
                           line_color="black", fill_color=inc_cmap)
         return r
+
+    """
+    这段代码看起来是用于绘制交易的进出场标记在OHLC（开盘价、最高价、最低价、收盘价）图上。这里假设你使用了Bokeh库进行数据可视化。
+
+    具体来说，这段代码执行以下操作：
+
+    1. `_plot_ohlc_trades`是一个自定义方法，用于在OHLC图上添加交易的进出场标记。
+
+    2. `trade_source`似乎是一个数据源对象，它用于存储交易相关的数据，包括`EntryBar`（进场时的OHLC柱的索引）、`ExitBar`（出场时的OHLC柱的索引）、`EntryPrice`（进场价格）和`ExitPrice`（出场价格）等。
+
+    3. `trade_source.add(...)`用于向`trade_source`数据源添加数据。在这里，它将进出场的柱的索引和价格数据添加到数据源中。
+
+    4. `fig_ohlc.multi_line(...)`用于绘制多条线段，即在OHLC图上绘制交易进出场标记。参数包括：
+       - `xs='position_lines_xs'`：x坐标数据，似乎是以`'position_lines_xs'`键存储在数据源中。
+       - `ys='position_lines_ys'`：y坐标数据，似乎是以`'position_lines_ys'`键存储在数据源中。
+       - `source=trade_source`：指定数据源，以获取要绘制的数据。
+       - `line_color=trades_cmap`：指定线段的颜色，可能是根据交易数据来确定的颜色映射。
+       - `legend_label=f'Trades ({len(trades)})'`：为这些线段添加图例标签，标明这些线段代表的是交易，还显示了交易数量。
+       - `line_width=8`：线段的宽度。
+       - `line_alpha=1`：线段的透明度。
+       - `line_dash='dotted'`：线段的样式，这里是虚线。
+    
+    总之，这段代码的目的是在OHLC图上可视化显示交易进出场点，使交易行为更容易理解和分析。它使用Bokeh来实现这一目标，具体的坐标数据和视觉样式可以根据你的数据和需求进行自定义。
+    """
 
     def _plot_ohlc_trades():
         """Trade entry / exit markers on OHLC plot"""

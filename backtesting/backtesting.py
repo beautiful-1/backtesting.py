@@ -24,6 +24,7 @@ from numpy.random import default_rng
 
 try:
     from tqdm.auto import tqdm as _tqdm
+
     _tqdm = partial(_tqdm, leave=False)
 except ImportError:
     def _tqdm(seq, **_):
@@ -49,6 +50,7 @@ class Strategy(metaclass=ABCMeta):
     `backtesting.backtesting.Strategy.next` to define
     your own strategy.
     """
+
     def __init__(self, broker, data, params):
         self._indicators = []
         self._broker: _Broker = broker
@@ -143,7 +145,7 @@ class Strategy(metaclass=ABCMeta):
             raise ValueError(
                 'Indicators must return (optionally a tuple of) numpy.arrays of same '
                 f'length as `data` (data shape: {self._data.Close.shape}; indicator "{name}" '
-                f'shape: {getattr(value, "shape" , "")}, returned value: {value})')
+                f'shape: {getattr(value, "shape", "")}, returned value: {value})')
 
         if plot and overlay is None and np.issubdtype(value.dtype, np.number):
             x = value / self._data.Close
@@ -192,6 +194,7 @@ class Strategy(metaclass=ABCMeta):
 
     class __FULL_EQUITY(float):  # noqa: N801
         def __repr__(self): return '.9999'
+
     _FULL_EQUITY = __FULL_EQUITY(1 - sys.float_info.epsilon)
 
     def buy(self, *,
@@ -291,6 +294,7 @@ class _Orders(tuple):
     """
     TODO: remove this class. Only for deprecation.
     """
+
     def cancel(self):
         """Cancel all non-contingent (i.e. SL/TP) orders."""
         for order in self:
@@ -318,6 +322,7 @@ class Position:
         if self.position:
             ...  # we have a position, either long or short
     """
+
     def __init__(self, broker: '_Broker'):
         self.__broker = broker
 
@@ -382,6 +387,7 @@ class Order:
     [filled]: https://www.investopedia.com/terms/f/fill.asp
     [Good 'Til Canceled]: https://www.investopedia.com/terms/g/gtc.asp
     """
+
     def __init__(self, broker: '_Broker',
                  size: float,
                  limit_price: Optional[float] = None,
@@ -528,6 +534,7 @@ class Trade:
     When an `Order` is filled, it results in an active `Trade`.
     Find active trades in `Strategy.trades` and closed, settled trades in `Strategy.closed_trades`.
     """
+
     def __init__(self, broker: '_Broker', size: int, entry_price: float, entry_bar, tag):
         self.__broker = broker
         self.__size = size
@@ -542,7 +549,7 @@ class Trade:
     def __repr__(self):
         return f'<Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
                f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}' \
-               f'{" tag="+str(self.__tag) if self.__tag is not None else ""}>'
+               f'{" tag=" + str(self.__tag) if self.__tag is not None else ""}>'
 
     def _replace(self, **kwargs):
         for k, v in kwargs.items():
@@ -697,6 +704,12 @@ class Trade:
             setattr(self, attr, order)
 
 
+"""
+这个类用于模拟金融交易，允许创建订单、管理仓位、计算盈亏等。
+通过这个经纪商对象，您可以模拟不同的交易策略，并跟踪交易的结果。
+"""
+
+
 class _Broker:
     def __init__(self, *, data, cash, commission, margin,
                  trade_on_close, hedging, exclusive_orders, index):
@@ -705,22 +718,41 @@ class _Broker:
             ("commission should be between -10% "
              f"(e.g. market-maker's rebates) and 10% (fees), is {commission}")
         assert 0 < margin <= 1, f"margin should be between 0 and 1, is {margin}"
+        # 数据源，通常是用于模拟交易的价格和时间数据。
         self._data: _Data = data
+        # 初始现金金额，表示您在模拟中可以使用的现金资金。
         self._cash = cash
+        # 佣金，表示每笔交易的手续费或成本。应该在 -0.1 到 0.1 之间。
         self._commission = commission
+        # 杠杆率，表示杠杆的倍数。在 0 和 1 之间。
         self._leverage = 1 / margin
+        # 布尔值，表示是否在每日收盘价上进行交易。
         self._trade_on_close = trade_on_close
+        # 布尔值，表示是否允许对冲（同时持有多头和空头仓位）。
         self._hedging = hedging
+        # 布尔值，表示是否使用排他性订单（每个新订单会自动关闭以前的订单/仓位）。
         self._exclusive_orders = exclusive_orders
-
+        # 时间索引，用于跟踪交易的时间。
         self._equity = np.tile(np.nan, len(index))
         self.orders: List[Order] = []
         self.trades: List[Trade] = []
         self.position = Position(self)
         self.closed_trades: List[Trade] = []
 
+    # 这个方法返回一个字符串，描述经纪商对象的状态，包括可用现金、仓位盈亏和交易数量。
     def __repr__(self):
         return f'<Broker: {self._cash:.0f}{self.position.pl:+.1f} ({len(self.trades)} trades)>'
+
+    """
+    new_order: 创建一个新的订单。它接受以下参数：
+    size: 订单的大小，正数表示买入，负数表示卖空。
+    limit: 限价订单的触发价格。
+    stop: 止损订单的触发价格。
+    sl: 止损价格。
+    tp: 止盈价格。
+    tag: 一个标记，用于标识订单。
+    trade: 关联的交易对象（可选）。
+    """
 
     def new_order(self,
                   size: float,
@@ -773,10 +805,20 @@ class _Broker:
 
         return order
 
+    """
+    获取最后一次（当前）的收盘价。
+    """
+
     @property
     def last_price(self) -> float:
         """ Price at the last (current) close. """
         return self._data.Close[-1]
+
+    """
+    用于调整订单价格以包括佣金或买卖差价。
+    这是因为在模拟交易中，通常会有一些额外成本，如佣金或者买卖差价。
+    调整后的价格取决于订单的方向，长仓会稍微高一些，空仓会稍微低一些。
+    """
 
     def _adjusted_price(self, size=None, price=None) -> float:
         """
@@ -785,15 +827,24 @@ class _Broker:
         """
         return (price or self.last_price) * (1 + copysign(self._commission, size))
 
+    # 获取经纪商的净值，包括可用现金和所有已关闭交易的盈亏
     @property
     def equity(self) -> float:
         return self._cash + sum(trade.pl for trade in self.trades)
+
+    """
+    获取可用保证金，用于维持仓位或开立新仓位。这个值取决于净值和已持仓交易的杠杆。
+    """
 
     @property
     def margin_available(self) -> float:
         # From https://github.com/QuantConnect/Lean/pull/3768
         margin_used = sum(trade.value / self._leverage for trade in self.trades)
         return max(0, self.equity - margin_used)
+
+    """
+    模拟下一个时间步骤的交易操作。它会根据订单，更新交易状态，计算净值，并处理交易。
+    """
 
     def next(self):
         i = self._i = len(self._data) - 1
@@ -811,6 +862,10 @@ class _Broker:
             self._cash = 0
             self._equity[i:] = 0
             raise _OutOfMoneyError
+
+    """
+    处理所有待处理的订单，包括限价订单、市价订单、止损和止盈订单。
+    """
 
     def _process_orders(self):
         data = self._data
@@ -965,6 +1020,10 @@ class _Broker:
         if reprocess_orders:
             self._process_orders()
 
+    """
+    减少现有交易的大小，通常用于关闭部分仓位。这会创建一个新的交易对象来表示剩余的仓位。
+    """
+
     def _reduce_trade(self, trade: Trade, price: float, size: float, time_index: int):
         assert trade.size * size < 0
         assert abs(trade.size) >= abs(size)
@@ -987,6 +1046,10 @@ class _Broker:
 
         self._close_trade(close_trade, price, time_index)
 
+    """
+    关闭一个已有的交易，计算盈亏，并从交易列表中移除。
+    """
+
     def _close_trade(self, trade: Trade, price: float, time_index: int):
         self.trades.remove(trade)
         if trade._sl_order:
@@ -996,6 +1059,10 @@ class _Broker:
 
         self.closed_trades.append(trade._replace(exit_price=price, exit_bar=time_index))
         self._cash += trade.pl
+
+    """
+    创建一个新的交易，代表一个新的仓位，同时创建止损和止盈订单。
+    """
 
     def _open_trade(self, price: float, size: int,
                     sl: Optional[float], tp: Optional[float], time_index: int, tag):
@@ -1021,6 +1088,7 @@ class Backtest:
     instance, or `backtesting.backtesting.Backtest.optimize` to
     optimize it.
     """
+
     def __init__(self,
                  data: pd.DataFrame,
                  strategy: Type[Strategy],
@@ -1090,10 +1158,10 @@ class Backtest:
 
         # Convert index to datetime index
         if (not isinstance(data.index, pd.DatetimeIndex) and
-            not isinstance(data.index, pd.RangeIndex) and
-            # Numeric index with most large numbers
-            (data.index.is_numeric() and
-             (data.index > pd.Timestamp('1975').timestamp()).mean() > .8)):
+                not isinstance(data.index, pd.RangeIndex) and
+                # Numeric index with most large numbers
+                (data.index.is_numeric() and
+                 (data.index > pd.Timestamp('1975').timestamp()).mean() > .8)):
             try:
                 data.index = pd.to_datetime(data.index, infer_datetime_format=True)
             except ValueError:
@@ -1251,8 +1319,8 @@ class Backtest:
                  return_optimization: bool = False,
                  random_state: Optional[int] = None,
                  **kwargs) -> Union[pd.Series,
-                                    Tuple[pd.Series, pd.Series],
-                                    Tuple[pd.Series, pd.Series, dict]]:
+    Tuple[pd.Series, pd.Series],
+    Tuple[pd.Series, pd.Series, dict]]:
         """
         Optimize strategy parameters to an optimal combination.
         Returns result `pd.Series` of the best run.
@@ -1446,8 +1514,8 @@ class Backtest:
             return stats
 
         def _optimize_skopt() -> Union[pd.Series,
-                                       Tuple[pd.Series, pd.Series],
-                                       Tuple[pd.Series, pd.Series, dict]]:
+        Tuple[pd.Series, pd.Series],
+        Tuple[pd.Series, pd.Series, dict]]:
             try:
                 from skopt import forest_minimize
                 from skopt.callbacks import DeltaXStopper
