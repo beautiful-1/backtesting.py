@@ -198,11 +198,17 @@ class Strategy(metaclass=ABCMeta):
     _FULL_EQUITY = __FULL_EQUITY(1 - sys.float_info.epsilon)
 
     def buy(self, *,
+            # 表示购买的数量，可以是一个小数（表示资产的一部分）或整数（表示单位数量）。
             size: float = _FULL_EQUITY,
+            # 表示限价（limit price），即愿意购买的最高价格。
             limit: Optional[float] = None,
+            # 表示止损（stop loss）价格，当价格达到或跌破这个价格时，会触发止损
             stop: Optional[float] = None,
+            # 表示止损价格，与stop一样，用于设定止损。
             sl: Optional[float] = None,
+            # 表示止盈（take profit）价格，当价格达到或超过这个价格时，会触发止盈。
             tp: Optional[float] = None,
+            # 表示一个可选的标签，可以用于标识或描述这个订单。
             tag: object = None):
         """
         Place a new long order. For explanation of parameters, see `Order` and its properties.
@@ -239,7 +245,17 @@ class Strategy(metaclass=ABCMeta):
     def equity(self) -> float:
         """Current account equity (cash plus assets)."""
         return self._broker.equity
-
+    """
+    @property：这是一个装饰器，它表明下面的data方法将被处理为一个属性而不是方法。
+    现在，一旦类中的 data 方法被装饰为 @property，它就可以像属性一样访问，而不需要使用括号来调用它。
+    例如，如果有一个类的实例 my_instance，你可以这样访问 data 属性：
+    python
+    Copy code
+    my_data = my_instance.data
+    
+    这将返回一个 _Data 类的实例。使用这种方式可以让你访问 _Data 类的实例，就好像它是一个属性而不是方法。
+    这通常用于提供方便的访问方法，同时保持类的封装性。
+    """
     @property
     def data(self) -> _Data:
         """
@@ -388,13 +404,22 @@ class Order:
     [Good 'Til Canceled]: https://www.investopedia.com/terms/g/gtc.asp
     """
 
-    def __init__(self, broker: '_Broker',
+    def __init__(self,
+                 # 订单所属的经纪人（_Broker 类的实例）
+                 broker: '_Broker',
+                 # 订单的大小，可以是正数或负数。如果是正数，表示多头（long）订单，如果是负数，表示空头（short）订单
                  size: float,
+                 # 限价订单的价格，如果是市价订单，则为 None。
                  limit_price: Optional[float] = None,
+                 # 止损订单的价格，如果没有设置止损或者止损已经触发，则为 None。
                  stop_price: Optional[float] = None,
+                 # 与订单关联的止损价格，用于设置条件触发的止损市价订单。
                  sl_price: Optional[float] = None,
+                 # 与订单关联的止盈价格，用于设置条件触发的止盈限价订单。
                  tp_price: Optional[float] = None,
+                 # 与订单关联的交易（Trade 类的实例），如果没有关联交易则为 None。
                  parent_trade: Optional['Trade'] = None,
+                 # 一个标签，可以是任意对象，用于跟踪订单和相关的交易。
                  tag: object = None):
         self.__broker = broker
         assert size != 0
@@ -500,6 +525,17 @@ class Order:
         """
         return self.__tag
 
+    """
+    这段代码用于文档控制（Documentation Control），它在代码中设置了一个特殊的属性 `__pdoc__`，用于指定类、方法或属性是否要被包含在自动生成的文档中。
+    在这里，`__pdoc__` 是一个字典，其中的键是类、方法或属性的名称，而值是一个用于控制文档生成的标志。
+    
+    具体到这段代码：`__pdoc__['Order.parent_trade'] = False` 表示禁用对 `Order` 类中的 `parent_trade` 属性的文档生成。
+    这意味着在自动生成的文档中，将不会包括 `Order` 类的 `parent_trade` 属性的说明，以及如何使用它的信息。
+    这通常用于隐藏某些内部或不需要在文档中展示的成员，以保持文档的整洁性和焦点。
+    
+    文档生成工具，如Sphinx，通常会遵循 `__pdoc__` 中的设置，以决定生成哪些成员的文档，并可以根据开发者的需要进行文档的精细控制。
+    这对于大型项目或需要生成详细文档的库非常有用，因为它可以帮助开发者更好地组织和呈现文档。
+    """
     __pdoc__['Order.parent_trade'] = False
 
     # Extra properties
@@ -536,29 +572,44 @@ class Trade:
     """
 
     def __init__(self, broker: '_Broker', size: int, entry_price: float, entry_bar, tag):
+        # 与交易相关联的经纪人对象。
         self.__broker = broker
+        # 交易的数量（如果是正数，表示买入，如果是负数，表示卖出）。
         self.__size = size
+        # 交易的入场价格。
         self.__entry_price = entry_price
         self.__exit_price: Optional[float] = None
+        # 交易的入场蜡烛图（或交易发生的时刻）的索引
         self.__entry_bar: int = entry_bar
         self.__exit_bar: Optional[int] = None
         self.__sl_order: Optional[Order] = None
         self.__tp_order: Optional[Order] = None
+        # 可选的标签，用于跟踪和标识交易。
         self.__tag = tag
-
+    """
+    这是 Trade 类的字符串表示形式方法。
+    它返回一个字符串，其中包括交易的属性信息，如交易大小、时间、价格、盈亏等。
+    这有助于以可读的方式显示交易对象。
+    """
     def __repr__(self):
         return f'<Trade size={self.__size} time={self.__entry_bar}-{self.__exit_bar or ""} ' \
                f'price={self.__entry_price}-{self.__exit_price or ""} pl={self.pl:.0f}' \
                f'{" tag=" + str(self.__tag) if self.__tag is not None else ""}>'
-
+    """
+    这是一个内部方法，用于替换交易对象的属性。它接受关键字参数，并将它们的值分配给相应的属性。
+    """
     def _replace(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, f'_{self.__class__.__qualname__}__{k}', v)
         return self
-
+    """
+    这是一个用于复制交易对象的方法。它创建一个交易的副本，并可以选择性地替换属性。
+    """
     def _copy(self, **kwargs):
         return copy(self)._replace(**kwargs)
-
+    """
+    这是一个方法，用于关闭交易的一部分。它接受一个 portion 参数，表示要关闭的交易部分的比例。
+    """
     def close(self, portion: float = 1.):
         """Place new `Order` to close `portion` of the trade at next market price."""
         assert 0 < portion <= 1, "portion must be a fraction between 0 and 1"
@@ -670,8 +721,16 @@ class Trade:
         you create or modify the existing SL order.
         By assigning it `None`, you cancel it.
         """
+        """
+        return self.__sl_order and self.__sl_order.stop 是属性方法的实际返回值。
+        它用于获取止损价格。self.__sl_order 表示交易对象的止损订单（如果已存在）。
+        然后，它使用 and 运算符来检查是否存在止损订单，如果存在，就返回 __sl_order.stop，否则返回 None。
+        """
         return self.__sl_order and self.__sl_order.stop
-
+    """
+    @sl.setter 装饰器用于将方法 sl 转化为一个属性的 setter 方法。
+    这意味着可以像为属性赋值一样使用 self.sl = price 来设置止损价格。
+    """
     @sl.setter
     def sl(self, price: float):
         self.__set_contingent('sl', price)
@@ -693,8 +752,12 @@ class Trade:
 
     def __set_contingent(self, type, price):
         assert type in ('sl', 'tp')
+        # 这行代码检查传入的 price 参数是否为 None 或者是大于零且小于正无穷大（np.inf）的有效价格值。
+        # 如果不满足这些条件，将触发断言错误。
         assert price is None or 0 < price < np.inf
         attr = f'_{self.__class__.__qualname__}__{type}_order'
+        # 这行代码通过使用 getattr 方法从对象 self 中获取具有属性名 attr 的条件订单对象。
+        # 这行代码会尝试获取之前设置的条件订单对象，如果存在的话。
         order: Order = getattr(self, attr)
         if order:
             order.cancel()
@@ -1093,13 +1156,67 @@ class Backtest:
                  data: pd.DataFrame,
                  strategy: Type[Strategy],
                  *,
-                 cash: float = 10_000,
+                 # 初始资金
+                 cash: float = 10_0000,
+                 # 手续费
                  commission: float = .0,
+                 # 保证金比例
                  margin: float = 1.,
                  trade_on_close=False,
                  hedging=False,
                  exclusive_orders=False
                  ):
+        """
+
+        """
+        """
+        `trade_on_close` 
+            是回测框架中的一个配置选项，用于指定市价订单何时执行。
+            具体来说，当 `trade_on_close` 为 `True` 时，市价订单将以当前周期的收盘价来执行，而不是等到下一个周期的开盘价。
+
+            这个选项通常用于模拟真实市场中的订单执行方式。
+            在实际市场中，市价订单可能在当前价格上下浮动，而回测中的市价订单通常在下一周期的开盘价成交，这可能会导致回测结果与实际市场表现有所不同。
+            设置 `trade_on_close` 为 `True` 可以更好地模拟实际市场的订单执行情况。
+            总之，`trade_on_close` 用于控制市价订单的执行时间，以更好地模拟实际市场中的交易行为。
+        "hedging"（对冲）    
+            在金融交易中，"hedging"（对冲）是一种用于管理风险的策略。
+            对冲的目标是减少或中和不利市场波动对投资组合的影响。
+            这通常涉及同时采取两个相反的头寸，以降低风险。具体来说：
+
+            1. **多头头寸**：这是一种做多（买入）某个资产的头寸，赌资产价格上涨。
+            多头头寸的风险是如果价格下跌，投资者可能会损失。
+
+            2. **空头头寸**：这是一种做空（卖出）相同资产的头寸，赌资产价格下跌。
+            空头头寸的风险是如果价格上涨，投资者可能会损失。
+
+            通过同时拥有多头和空头头寸，投资者可以对冲风险。
+            如果价格上涨，多头头寸可能会盈利，而空头头寸可能会亏损，但两者的总体影响可能相对平衡。
+            同样，如果价格下跌，多头头寸可能会亏损，而空头头寸可能会盈利。
+
+            在一些市场环境下，对冲可以用来保护投资组合免受市场波动的负面影响。
+            对冲还可以用于管理与特定头寸或投资策略相关的风险。
+            这在金融市场中非常常见，特别是在期货市场和外汇市场中。
+
+            在回测中，"hedging" 表示允许同时拥有多头和空头头寸，而不是要求首先关闭一个头寸然后再打开另一个头寸。
+            允许对冲可以更好地模拟实际市场中的交易行为，其中投资者可以采取多头和空头头寸以管理风险。
+            
+        `exclusive_orders` 
+            是在回测（backtesting）中的一个参数，用于指定是否允许在同一时间只能存在一个订单或头寸。
+            这个参数的设置可以影响回测的行为和结果。
+
+            如果 `exclusive_orders` 设置为 `True`，那么在任何给定时刻，只能存在一个订单或头寸，新的订单将会自动关闭之前的订单或头寸。
+            这种行为通常模拟了一种更保守的交易策略，其中投资者在任何时刻只能持有一个头寸，无论是多头还是空头。
+            这种方式可以用于模拟 FIFO（先进先出）交易规则，其中首先进入的头寸首先被关闭。
+
+            如果 `exclusive_orders` 设置为 `False`，那么在同一时刻可以存在多个订单或头寸，无需关闭之前的订单或头寸。
+            这种行为更灵活，允许同时持有多个头寸，包括多头和空头头寸。
+            这可以用于模拟一些更积极或多样化的交易策略，其中投资者可以在同一时间持有不同的头寸，以从多个市场运动中获利。
+
+            在选择 `exclusive_orders` 的设置时，需要考虑交易策略的特性和目标，以及回测的目的。
+            如果想要更加谨慎和保守的回测结果，可以将其设置为 `True`，以限制每个时刻只能存在一个头寸。
+            如果希望更多元化或积极的回测结果，可以将其设置为 `False`，以允许同时存在多个头寸。
+        """
+
         """
         Initialize a backtest. Requires data and a strategy to test.
 
@@ -1146,6 +1263,9 @@ class Backtest:
         [FIFO]: https://www.investopedia.com/terms/n/nfa-compliance-rule-2-43b.asp
         """
 
+        """
+        检测入参是否符合规则
+        """
         if not (isinstance(strategy, type) and issubclass(strategy, Strategy)):
             raise TypeError('`strategy` must be a Strategy sub-type')
         if not isinstance(data, pd.DataFrame):
@@ -1184,10 +1304,20 @@ class Backtest:
                           'trading is not supported. If you want to trade Bitcoin, '
                           'increase initial cash, or trade μBTC or satoshis instead (GH-134).',
                           stacklevel=2)
+
+        """
+        .is_monotonic_increasing 是 Pandas Series 或 Index 对象的方法，用于检查索引是否按升序排序。
+        如果是单调递增的，该方法返回 True；否则，返回 False。
+        """
         if not data.index.is_monotonic_increasing:
             warnings.warn('Data index is not sorted in ascending order. Sorting.',
                           stacklevel=2)
             data = data.sort_index()
+        """
+        isinstance(data.index, pd.DatetimeIndex) 是一个条件检查，它验证 data.index 是否为 Pandas 中的日期时间索引。
+        如果是，条件将返回 True，否则返回 False。
+
+        """
         if not isinstance(data.index, pd.DatetimeIndex):
             warnings.warn('Data index is not datetime. Assuming simple periods, '
                           'but `pd.DateTimeIndex` is advised.',
@@ -1257,46 +1387,112 @@ class Backtest:
         data._update()  # Strategy.init might have changed/added to data.df
 
         # Indicators used in Strategy.next()
+        """
+        {attr: indicator for attr, indicator in strategy.__dict__.items()}：
+            这是一个字典推导式，它遍历 strategy 对象的属性字典 strategy.__dict__ 中的每个属性。
+            对于每个属性，它将属性名称存储为 attr，将属性值（指标对象）存储为 indicator。
+            这样，我们获得了策略对象中所有属性和它们的值的映射。
+        
+        if isinstance(indicator, _Indicator)：
+            在字典推导式中，使用 if 语句对属性进行过滤。
+            有当属性值（indicator）是 _Indicator 类型的对象时，才包括在 indicator_attrs 字典中。
+            
+        .items()：
+            最后，通过调用 .items() 方法，将字典转换为包含键-值对的元组列表。每个元组包含属性名称和对应的指标对象。
+        """
         indicator_attrs = {attr: indicator
                            for attr, indicator in strategy.__dict__.items()
                            if isinstance(indicator, _Indicator)}.items()
 
         # Skip first few candles where indicators are still "warming up"
         # +1 to have at least two entries available
+        """
+        indicator_attrs 
+            是一个字典，其中包含策略对象中的指标属性，以属性名作为键，指标对象作为值。
+        for _, indicator in indicator_attrs 
+            循环遍历 indicator_attrs 字典，每次迭代中 _ 是属性名，indicator 是指标对象。
+        np.isnan(indicator.astype(float)) 
+            将指标对象中的值转换为浮点数，然后检查是否为 NaN（Not a Number）。这将生成一个布尔数组，其中 True 表示值为 NaN。
+        .argmin(axis=-1) 
+            用于找到每个指标对象中的第一个 True（NaN 值）的位置。这将返回一个整数数组，表示第一个 True 出现的索引。
+        .max() 
+            取整数数组中的最大值，即找到所有指标对象中的第一个 True 出现的最大位置。
+        max(..., default=0) 
+            使用 max 函数来查找最大值，如果所有指标对象中的值都不是 True，即没有 NaN 值，那么 default=0 指定默认值为 0。
+        start = 1 + ... 
+            将上述计算得到的最大位置加上 1，以获得 start 变量的值。
+            这是因为 start 表示回测中开始执行策略操作的时间点，通常需要在数据中向后偏移一个周期，以确保指标值已经计算并可用于策略操作。        """
         start = 1 + max((np.isnan(indicator.astype(float)).argmin(axis=-1).max()
                          for _, indicator in indicator_attrs), default=0)
 
         # Disable "invalid value encountered in ..." warnings. Comparison
         # np.nan >= 3 is not invalid; it's False.
+        """
         with np.errstate(invalid='ignore'):
-
+            这一行代码设置了 NumPy 中的错误状态，将 'invalid' 错误（例如 NaN 值的比较）设置为忽略，这意味着如果在计算中涉及到无效值，将不会引发错误
+        """
+        with np.errstate(invalid='ignore'):
+            """
+            for i in range(start, len(self._data)):
+                这是主要的循环，从 start 开始，一直遍历到回测数据的最后一个时间步。i 代表当前的时间步。
+            """
             for i in range(start, len(self._data)):
                 # Prepare data and indicators for `next` call
+                """
+                data._set_length(i + 1)
+                这一行将 data 对象的长度设置为 i + 1，以便策略可以根据当前时间步访问适当的数据。这实际上是在“推进”数据，以便在策略中可以使用正确的数据。
+                """
                 data._set_length(i + 1)
                 for attr, indicator in indicator_attrs:
                     # Slice indicator on the last dimension (case of 2d indicator)
+                    """
+                    setattr(strategy, attr, indicator[..., :i + 1])
+                    这一行将策略对象 strategy 中的指标属性 attr 设置为 indicator[..., :i + 1]。
+                    这是为了确保策略可以访问截止到当前时间步的指标数据
+                    """
                     setattr(strategy, attr, indicator[..., :i + 1])
 
                 # Handle orders processing and broker stuff
+                """
+                try: broker.next() except _OutOfMoneyError: break
+                这段代码在每个时间步模拟经纪人的操作，尝试执行订单。
+                如果在执行订单时引发了 _OutOfMoneyError 错误，表示资金不足，循环将被中断（退出）。
+                """
                 try:
                     broker.next()
                 except _OutOfMoneyError:
                     break
 
                 # Next tick, a moment before bar close
+                """
+                strategy.next()
+                在经纪人处理订单之后，策略被要求执行 next() 方法，这是策略中定义的主要逻辑执行部分。
+                策略会在每个时间步根据指标和其他因素决定是否发出新的订单
+                """
                 strategy.next()
             else:
                 # Close any remaining open trades so they produce some stats
+                """
+                这一行关闭任何仍然处于打开状态的交易（订单执行的交易）。这是为了确保这些交易也会生成一些统计数据。
+                """
                 for trade in broker.trades:
                     trade.close()
 
                 # Re-run broker one last time to handle orders placed in the last strategy
                 # iteration. Use the same OHLC values as in the last broker iteration.
+                """
+                if start < len(self._data): try_(broker.next, exception=_OutOfMoneyError)
+                如果 start 小于数据的长度，表示还有时间步没有执行策略操作。
+                这里再次尝试经纪人的操作，以处理在策略的最后一个时间步中放置的订单。
+                """
                 if start < len(self._data):
                     try_(broker.next, exception=_OutOfMoneyError)
 
             # Set data back to full length
             # for future `indicator._opts['data'].index` calls to work
+            """
+            最后的几行代码计算并汇总回测的统计数据，包括回报率、波动率、夏普比率等。这些统计数据将存储在 self._results 中，并作为函数的返回值。
+            """
             data._set_length(len(self._data))
 
             equity = pd.Series(broker._equity).bfill().fillna(broker._cash).values
@@ -1307,7 +1503,10 @@ class Backtest:
                 risk_free_rate=0.0,
                 strategy_instance=strategy,
             )
-
+        print(self._results)
+        print(type(indicator_attrs))
+        for key, value in indicator_attrs:
+            self._data[key]=value
         return self._results
 
     def optimize(self, *,
@@ -1620,6 +1819,51 @@ class Backtest:
 
     _mp_backtests: Dict[float, Tuple['Backtest', List, Callable]] = {}
 
+    """
+    results: pd.Series = None
+        如果提供 results，它应该是一个特定的结果 pd.Series，通常是通过 Backtest.run 或 Backtest.optimize 返回的。
+        如果未提供 results，将使用最后一次运行的结果。
+        
+    filename=None
+        filename 用于指定保存交互式 HTML 绘图的路径。
+        默认情况下，将在当前工作目录中创建一个与策略和参数相关的文件。
+    plot_width=None
+        plot_width 用于指定绘图的宽度（以像素为单位）。
+        如果设置为 None（默认值），则绘图将占据浏览器宽度的 100%。高度目前不可调整。
+    plot_equity=True
+        如果为 True，结果图将包含权益（初始资金加资产）图表部分，与 plot_return 加初始 100% 相同。
+    plot_return=False
+        如果为 True，结果图将包含累积回报图表部分，与 plot_equity 减初始 100% 相同。
+    plot_pl=True
+        如果为 True，结果图将包含盈亏（P/L）指标部分。
+    plot_volume=True
+        如果为 True，结果图将包含交易量图表部分。
+    plot_drawdown=False
+        如果为 True，结果图将包含独立的回撤图表部分。
+    plot_trades=True
+        如果为 True，图表中将使用哈希标记的拖拉机光束来标记交易条目和交易退出之间的间隔。
+    smooth_equity=False
+        如果为 True，权益图将在交易关闭时的固定点之间进行插值，不受任何中间资产波动的影响。
+    relative_equity=True
+        如果为 True，将返回图表中的权益轴以返回百分比而不是绝对等值。
+    superimpose: Union[bool, str] = True
+        如果为 True，将在原始蜡烛图表上叠加较大时间框架的蜡烛图。
+        默认的下采样规则是：对于每日数据，每月下采样；对于每小时数据，每天下采样；对于分钟数据，每小时下采样；对于（子）秒数据，每分钟下采样。
+        superimpose 也可以是有效的 Pandas 偏移字符串，例如 '5T' 或 '5min'，在这种情况下，将使用该频率进行叠加。
+        请注意，这仅适用于具有日期时间索引的数据。
+    resample=True
+        如果为 True，OHLC 数据将以一种使 Bokeh 绘制的蜡烛数限制在 10,000 的方式进行重新采样。
+        这可以在数据过多的情况下提高绘图的交互性性能，避免浏览器出现 "Javascript 错误：Maximum call stack size exceeded" 或类似的错误。
+        权益和回撤曲线以及单个交易数据也会被[合理地汇总][TRADES_AGG]。
+        resample 也可以是 Pandas 偏移字符串，例如 '5T' 或 '5min'，在这种情况下，将使用该频率进行重新采样。
+        请注意，这仅适用于具有日期时间索引的数据。
+    reverse_indicators=False
+        如果为 True，在 OHLC 图表下面以与声明顺序相反的顺序绘制指标。
+    show_legend=True
+        如果为 True，结果图中将包含带有标签的图例。
+    open_browser=True
+        如果为 True，将在默认 Web 浏览器中打开生成的 filename。
+    """
     def plot(self, *, results: pd.Series = None, filename=None, plot_width=None,
              plot_equity=True, plot_return=False, plot_pl=True,
              plot_volume=True, plot_drawdown=False, plot_trades=True,

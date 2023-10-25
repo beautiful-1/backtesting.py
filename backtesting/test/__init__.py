@@ -13,6 +13,8 @@ GOOG = _read_file('GOOG.csv')
 """DataFrame of daily NASDAQ:GOOG (Google/Alphabet) stock price data from 2004 to 2013."""
 
 EURUSD = _read_file('EURUSD.csv')
+
+btcusdt = _read_file('database_db_dbbardata.csv')
 """DataFrame of hourly EUR/USD forex data from April 2017 to February 2018."""
 
 """

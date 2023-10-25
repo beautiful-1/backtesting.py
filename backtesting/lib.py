@@ -34,6 +34,9 @@ OHLCV_AGG = OrderedDict((
     ('Low', 'min'),
     ('Close', 'last'),
     ('Volume', 'sum'),
+    ('macd', 'mean'),
+    ('signal', 'mean'),
+    ('hist', 'mean'),
 ))
 """Dictionary of rules for aggregating resampled OHLCV data frames,
 e.g.

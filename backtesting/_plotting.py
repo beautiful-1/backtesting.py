@@ -66,12 +66,12 @@ from bokeh.layouts import gridplot
 """
 导入 Bokeh 库中的 Category10 调色板，用于定义颜色映射。
 """
-from bokeh.palettes import Category10
+from bokeh.palettes import Category10, RdBu
 
 """
 导入 Bokeh 库中的 factor_cmap 函数，用于创建因子映射，将因子值映射到颜色。
 """
-from bokeh.transform import factor_cmap
+from bokeh.transform import factor_cmap, linear_cmap
 
 from backtesting._util import _data_period, _as_list, _Indicator
 
@@ -433,6 +433,27 @@ return this.labels[index] || "";
         fig.yaxis.formatter = NumeralTickFormatter(format="-0.[0]%")
         return fig
 
+    def _plot_macd():
+        fig = new_indicator_figure(y_axis_label="MACD", height=190)
+        fig.xaxis.formatter = fig_ohlc.xaxis[0].formatter
+        fig.xaxis.visible = True
+        fig_ohlc.xaxis.visible = False
+
+        l1 = fig.line('index', 'macd', source=source, line_width=1.3)
+        l2 = fig.line('index', 'signal', source=source, line_width=1.3)
+        data = source.data
+
+        mapper = linear_cmap(field_name='hist', palette=['blue', 'red'],
+                             low=data['hist'].min(), high=data['hist'].max())
+
+        r = fig.vbar('index', BAR_WIDTH, 'hist', source=source, color=inc_cmap)
+
+        set_tooltips(fig, [('hist', '@hist{0.00 a}')], renderers=[r])
+        set_tooltips(fig, [('macd', '@macd{0.00 a}')], renderers=[l1])
+        set_tooltips(fig, [('signal', '@signal{0.00 a}')], renderers=[l2])
+        fig.yaxis.formatter = NumeralTickFormatter(format="0 a")
+        return fig
+
     def _plot_pl_section():
         """Profit/Loss markers section"""
         fig = new_indicator_figure(y_axis_label="Profit / Loss")
@@ -463,12 +484,21 @@ return this.labels[index] || "";
 
     def _plot_volume_section():
         """Volume section"""
+        # 这行代码创建一个新的Bokeh图表对象，并设置y轴标签为"Volume"。
         fig = new_indicator_figure(y_axis_label="Volume")
+        # 这行代码将fig图表的x轴格式化器设置为与另一个图表fig_ohlc的x轴格式化器相同，以确保它们的x轴刻度对齐
         fig.xaxis.formatter = fig_ohlc.xaxis[0].formatter
+        # 这行代码设置fig图表的x轴可见，以显示x轴。
         fig.xaxis.visible = True
+        # 这行代码设置另一个图表fig_ohlc的x轴不可见，以只显示Volume的x轴。
         fig_ohlc.xaxis.visible = False  # Show only Volume's xaxis
+        # 这行代码在fig图表上创建一个柱状图（垂直条形图），其中'index'表示x轴位置，BAR_WIDTH表示柱状图的宽度，
+        # 'Volume'表示y轴数据，source是数据源，color=inc_cmap表示柱状图颜色，通常是用来表示增加的颜色。
         r = fig.vbar('index', BAR_WIDTH, 'Volume', source=source, color=inc_cmap)
+        #  这行代码设置鼠标悬停提示（tooltips），当鼠标悬停在柱状图上时，会显示"Volume"和对应的数值。
+        #  renderers=[r]表示该提示应用于柱状图r。
         set_tooltips(fig, [('Volume', '@Volume{0.00 a}')], renderers=[r])
+        # 这行代码设置y轴的格式化器，以便更好地显示交易量，使用"0 a"格式，以便在图表上以紧凑的形式显示。
         fig.yaxis.formatter = NumeralTickFormatter(format="0 a")
         return fig
 
@@ -529,7 +559,8 @@ return this.labels[index] || "";
 
     1. `_plot_ohlc_trades`是一个自定义方法，用于在OHLC图上添加交易的进出场标记。
 
-    2. `trade_source`似乎是一个数据源对象，它用于存储交易相关的数据，包括`EntryBar`（进场时的OHLC柱的索引）、`ExitBar`（出场时的OHLC柱的索引）、`EntryPrice`（进场价格）和`ExitPrice`（出场价格）等。
+    2. `trade_source`似乎是一个数据源对象，它用于存储交易相关的数据，
+    包括`EntryBar`（进场时的OHLC柱的索引）、`ExitBar`（出场时的OHLC柱的索引）、`EntryPrice`（进场价格）和`ExitPrice`（出场价格）等。
 
     3. `trade_source.add(...)`用于向`trade_source`数据源添加数据。在这里，它将进出场的柱的索引和价格数据添加到数据源中。
 
@@ -664,6 +695,8 @@ return this.labels[index] || "";
     if plot_volume:
         fig_volume = _plot_volume_section()
         figs_below_ohlc.append(fig_volume)
+
+    figs_below_ohlc.append(_plot_macd())
 
     if superimpose and is_datetime_index:
         _plot_superimposed_ohlc()
